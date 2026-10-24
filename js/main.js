@@ -22,7 +22,7 @@
   let world = null, state = 'home', mode = 'demo', paused = false;
   let timeScale = 1, slowT = 0, endTimer = 0, demoTimer = 2.5;
   let extraUsed = false, targetHit = false, stats = null, lastVib = 0, introTimer = 0;
-  let last = performance.now(), acc = 0, touched = false;
+  let last = performance.now(), acc = 0, touched = false, tutT = 0, tutSpot = null;
 
   // ---------- helpers ----------
   function vibrate(ms) {
@@ -40,6 +40,16 @@
     t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
     clearTimeout(toastT);
     toastT = setTimeout(() => t.classList.add('hidden'), 2200);
+  }
+  // animated "+N" so a reward is felt, not just read
+  function countUp(el, to, ms = 700) {
+    const t0 = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / ms);
+      el.innerHTML = `${ic('i-coin')}+${Math.round(to * (1 - Math.pow(1 - p, 3)))}`;
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
   function fmtDate(d) { const [y, m, dd] = d.split('-'); return `${+dd} ${MONTHS[+m - 1]} ${y}`; }
   function bumpCoins() {
@@ -98,7 +108,10 @@
   function refreshHome() {
     const p = P();
     $('#home-coins span').textContent = p.coins;
-    $('#home-streak span').textContent = LP.dailyStreak();
+    const streak = LP.dailyStreak();
+    $('#home-streak span').textContent = streak;
+    $('#home-streak').classList.toggle('hidden', streak <= 0);
+    $('#home-stars span').textContent = LP.totalStars();
     $('#play-level').textContent = 'Level ' + p.level;
     const n = LP.missionsClaimable();
     $('#badge-missions').textContent = n;
@@ -122,7 +135,7 @@
   function beginAttempt(cfg) {
     world = E.createWorld(cfg);
     acc = 0; slowT = 0; timeScale = 1; paused = false;
-    extraUsed = false; targetHit = false;
+    extraUsed = false; targetHit = false; tutSpot = null; tutT = 0.4;
     stats = { pops: 0, chainMax: 0, bom: 0, fever: 0 };
     R.clearFx();
     showPlayUi();
@@ -219,7 +232,7 @@
       mark.classList.remove('hidden');
       mark.style.left = (100 * w.target / w.total) + '%';
       const hit = w.popped >= w.target;
-      count.textContent = hit ? `Target tercapai \u00b7 ${w.popped}` : `${w.popped} / ${w.target}`;
+      count.innerHTML = hit ? `${w.popped} <small>TARGET TERCAPAI</small>` : `${w.popped} / ${w.target} <small>TARGET</small>`;
       count.classList.toggle('hit', hit); bar.classList.toggle('hit', hit);
     }
   }
@@ -383,12 +396,13 @@
         <button class="btn ad" id="r-double">${ic('i-video')}<span>2x Koin (+${coins})</span></button>
         <button class="btn primary" id="r-next">${ic('i-play')}<span>Lanjut Level ${L + 1}</span></button>
         <div class="row">
-          <button class="btn" id="r-home" aria-label="Menu">${ic('i-home')}</button>
-          <button class="btn" id="r-retry" aria-label="Ulangi">${ic('i-retry')}</button>
+          <button class="btn" id="r-home">${ic('i-home')}<span>Menu</span></button>
+          <button class="btn" id="r-retry">${ic('i-retry')}<span>Ulang</span></button>
           <button class="btn" id="r-share">${ic('i-share')}<span>Pamer</span></button>
         </div>
       </div>`, { dismissable: false });
     sheet.querySelectorAll('.stars svg').forEach((el, i) => setTimeout(() => { el.classList.add('in'); if (i < stars) S.star(i); }, 250 + i * 260));
+    countUp(sheet.querySelector('#r-coins'), coins, 900);
     sheet.querySelector('#r-double').onclick = async (e) => {
       if (doubled) return;
       const ok = await LP.Ads.rewarded('double_coins');
@@ -397,7 +411,7 @@
       LP.addCoins(coins, 'double');
       S.coin();
       e.currentTarget.disabled = true;
-      sheet.querySelector('#r-coins').innerHTML = `${ic('i-coin')}+${coins * 2}`;
+      countUp(sheet.querySelector('#r-coins'), coins * 2, 600);
     };
     sheet.querySelector('#r-next').onclick = () => { S.click(); closeSheet(); afterResult(() => startLevel(P().level > L ? L + 1 : P().level)); };
     sheet.querySelector('#r-retry').onclick = () => { S.click(); closeSheet(); afterResult(() => startLevel(L)); };
@@ -416,7 +430,7 @@
     const miss = w.target - w.popped;
     const pct = Math.round(100 * w.popped / w.target);
     const sheet = openSheet(`
-      <h2>${miss <= 2 ? 'Tipis banget!' : 'Hampir!'}</h2>
+      <h2>${miss <= 2 ? 'Tipis banget!' : pct >= 70 ? 'Hampir!' : 'Ayo, sekali lagi!'}</h2>
       <div class="big-num miss">Kurang ${miss}</div>
       <div class="prog"><i style="width:${pct}%"></i></div>
       <p class="near">${w.popped} dari ${w.target} gelembung &middot; rantai terbaik x${w.bestChain}</p>
@@ -494,12 +508,12 @@
     const s = openSheet(`
       ${head('Tantangan Harian', fmtDate(d.date))}
       <div class="daily-hero">
-        <div class="pill streak">${ic('i-fire')}<span>${LP.dailyStreak()} hari beruntun</span></div>
+        <div class="pill streak">${ic('i-fire')}<span>${LP.dailyStreak() ? LP.dailyStreak() + ' hari beruntun' : 'Mulai streak hari ini'}</span></div>
       </div>
       <p class="note" style="margin-top:6px">Satu board yang sama untuk semua pemain hari ini. Satu ketukan, kejar skor setinggi mungkin. Rantai panjang bikin skor meledak.</p>
       <div class="stat-row">
-        <div class="stat"><div class="k">Hari ini</div><div class="v">${d.best.toLocaleString('id-ID')}</div></div>
-        <div class="stat"><div class="k">Rekor</div><div class="v">${P().bestDaily.toLocaleString('id-ID')}</div></div>
+        <div class="stat"><div class="k">Hari ini</div><div class="v">${d.best ? d.best.toLocaleString('id-ID') : '-'}</div></div>
+        <div class="stat"><div class="k">Rekor</div><div class="v">${P().bestDaily ? P().bestDaily.toLocaleString('id-ID') : '-'}</div></div>
         <div class="stat"><div class="k">Kesempatan</div><div class="v">${Math.max(0, left)}</div></div>
       </div>
       <div class="actions">
@@ -619,9 +633,9 @@
         ${toggleRow('music', 'i-music', 'Musik latar')}
         ${toggleRow('vibrate', 'i-vibrate', 'Getar')}
       </div>
-      <h3 style="margin:18px 0 0;font-size:17px">Gelembung spesial</h3>
-      <div class="legend">${Object.keys(SPECIALS).map((k) => `<div>${ic('b-' + k)}<span><b style="color:#fff">${SPECIALS[k].title.replace('Gelembung ', '')}</b>: ${SPECIALS[k].text}</span></div>`).join('')}</div>
-      <p class="note">LETUP! v1.0.1 &middot; Satu ketukan per level. Rantai 15+ memicu FEVER: semua ledakan jadi lebih besar.</p>`);
+      <h3 class="section-title">Gelembung spesial</h3>
+      <div class="legend">${Object.keys(SPECIALS).map((k) => `<div>${ic('b-' + k)}<span><b>${SPECIALS[k].title.replace('Gelembung ', '')}</b>${SPECIALS[k].text}</span></div>`).join('')}</div>
+      <p class="note">LETUP! v1.1 &middot; Satu ketukan per level. Rantai 15+ memicu FEVER: semua ledakan jadi lebih besar.</p>`);
     bindToggles(s);
   }
 
@@ -673,7 +687,12 @@
       if (endTimer <= 0) finishAttempt();
     }
     if (introTimer > 0) { introTimer -= dt; if (introTimer <= 0) { $('#intro').classList.add('hidden'); $('#intro').style.color = ''; } }
-    R.frame(world, sdt, { noFrame: state === 'home', noChain: state === 'home' });
+    if (state === 'ready' && mode === 'level' && !P().tutorialDone && world.tapsUsed === 0) {
+      // first level: a pulsing ring suggests a good spot to tap
+      tutT -= dt;
+      if (tutT <= 0) { tutT = 1.1; if (!tutSpot || Math.random() < 0.3) tutSpot = pickCluster(world); R.ring(tutSpot[0], tutSpot[1], '#ffffff', 46, 3); }
+    }
+    R.frame(world, sdt, { noFrame: state === 'home', noChain: state === 'home', dim: state === 'home' ? 0.6 : 1 });
     requestAnimationFrame(loop);
   }
 

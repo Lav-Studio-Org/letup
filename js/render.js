@@ -257,7 +257,7 @@
       }
       cx.setTransform(dpr * view.s, 0, 0, dpr * view.s, dpr * (view.ox + sx), dpr * (view.oy + sy));
       if (!opts.noFrame) drawFrame();
-      if (w) drawWorld(w, dt);
+      if (w) { cx.globalAlpha = opts.dim || 1; drawWorld(w, dt); cx.globalAlpha = 1; }
       drawFx(dt);
       if (w && !opts.noChain) drawChain(w);
       if (fx.flash > 0) {

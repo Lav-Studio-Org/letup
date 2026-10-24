@@ -1,5 +1,5 @@
 // Offline cache. Bump VERSION when shipping changes so players get the new files.
-const VERSION = 'letup-v2';
+const VERSION = 'letup-v3';
 const FILES = [
   './', 'index.html', 'style.css', 'manifest.webmanifest', 'icon.svg', 'fonts/fredoka-latin.woff2',
   'js/levels-data.js', 'js/engine.js', 'js/meta.js', 'js/audio.js', 'js/ads-config.js', 'js/ads.js', 'js/render.js', 'js/main.js',

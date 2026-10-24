@@ -36,6 +36,7 @@
     <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2-.5-1.2.2-2.5 1.6-2.5H17a4 4 0 0 0 4-4C21 7 17 3 12 3z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="7.5" cy="11" r="1.6" fill="currentColor"/><circle cx="10.5" cy="7" r="1.6" fill="currentColor"/><circle cx="15.5" cy="7.5" r="1.6" fill="currentColor"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
     <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 2.5L5 13.5h6l-1.5 8 8.5-11h-6z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V3.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M6.5 4h11l-2.6 4 2.6 4h-11z" fill="currentColor"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
@@ -59,7 +60,7 @@
     <button class="icon-btn" id="btn-pause" aria-label="Jeda"><svg><use href="#i-pause"/></svg></button>
     <div class="hud-mid">
       <div class="hud-title" id="hud-title">LEVEL 1</div>
-      <div class="bar" id="hud-bar"><div class="fill" id="hud-fill"></div><div class="mark" id="hud-mark"></div></div>
+      <div class="bar" id="hud-bar"><div class="fill" id="hud-fill"></div><div class="mark" id="hud-mark"><svg><use href="#i-flag"/></svg></div></div>
       <div class="hud-count" id="hud-count">0 / 1</div>
     </div>
     <div class="coins pill" id="hud-coins"><svg><use href="#i-coin"/></svg><span>0</span></div>
@@ -71,7 +72,7 @@
   <!-- Home -->
   <section id="home" class="screen">
     <div class="topbar">
-      <div class="pill streak" id="home-streak" title="Hari beruntun"><svg><use href="#i-fire"/></svg><span>0</span></div>
+      <div class="topgroup"><div class="pill stars-pill" id="home-stars" title="Total bintang"><svg><use href="#i-star"/></svg><span>0</span></div><div class="pill streak hidden" id="home-streak" title="Hari beruntun"><svg><use href="#i-fire"/></svg><span>0</span></div></div>
       <div class="pill coins" id="home-coins"><svg><use href="#i-coin"/></svg><span>0</span></div>
     </div>
     <div class="logo">
