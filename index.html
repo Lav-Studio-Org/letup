@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>LETUP! Satu Ketukan, Ledakan Berantai</title>
+  <meta name="description" content="Game satu ketukan: ketuk sekali, lihat gelembung meletup berantai jadi melodi. Gratis, langsung main di browser.">
+  <meta name="theme-color" content="#0b0620">
+  <meta property="og:title" content="LETUP! Satu ketukan, ledakan berantai">
+  <meta property="og:description" content="Ketuk sekali, pecahkan semuanya. Berapa rantai terpanjangmu?">
+  <meta property="og:image" content="https://lavaruz.github.io/letup/icon-512.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="preload" href="fonts/fredoka-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Icon sprite. Rule: green + video icon = rewarded ad, gold = coins, pink = primary action. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="g-coin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset="1" stop-color="#ffb21f"/></linearGradient>
+      <linearGradient id="g-star" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3a3"/><stop offset="1" stop-color="#ffc21f"/></linearGradient>
+    </defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="currentColor"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="url(#g-coin)" stroke="#c77800" stroke-width="1.4"/><circle cx="12" cy="12" r="6" fill="none" stroke="#c77800" stroke-width="1.2" opacity=".6"/><path d="M12 8.2l1.1 2.3 2.5.3-1.8 1.7.5 2.5-2.3-1.2-2.3 1.2.5-2.5-1.8-1.7 2.5-.3z" fill="#fff6c9"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="currentColor"/><path d="M16.5 10.2l4.3-2.6a.8.8 0 0 1 1.2.7v7.4a.8.8 0 0 1-1.2.7l-4.3-2.6z" fill="currentColor"/><path d="M7.5 9.5v5l4-2.5z" fill="#0d3b1c" opacity=".55"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.8l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.6l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" fill="url(#g-star)" stroke="#d48a00" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-star-off" viewBox="0 0 24 24"><path d="M12 2.8l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.6l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.3)" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5v8a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9V20.5H5.5A1.5 1.5 0 0 1 4 19z" fill="currentColor"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.8" fill="currentColor"/><circle cx="6" cy="12" r="2.8" fill="currentColor"/><circle cx="18" cy="18.5" r="2.8" fill="currentColor"/><path d="M8.4 10.7l7.2-3.9M8.4 13.3l7.2 3.9" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3.5 10h17" stroke="currentColor" stroke-width="2.2"/><path d="M8 3v4M16 3v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="15" r="2.2" fill="currentColor"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2-.5-1.2.2-2.5 1.6-2.5H17a4 4 0 0 0 4-4C21 7 17 3 12 3z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="7.5" cy="11" r="1.6" fill="currentColor"/><circle cx="10.5" cy="7" r="1.6" fill="currentColor"/><circle cx="15.5" cy="7.5" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 2.5L5 13.5h6l-1.5 8 8.5-11h-6z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+    <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 2.5c1 3.2 5.5 5.6 5.5 10.5a5.5 5.5 0 0 1-11 0c0-2.4 1.2-3.9 2.4-5 .1 1.6.8 2.7 1.9 3.2C10.3 8.3 11 5.5 12 2.5z" fill="#ff7a2e"/><path d="M12 12c.6 1.4 2.4 2.3 2.4 4.2a2.4 2.4 0 0 1-4.8 0c0-1.3.9-2.2 2.4-4.2z" fill="#ffd23f"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17.5V6l10-2.5v11.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="6.5" cy="17.5" r="2.8" fill="currentColor"/><circle cx="16.5" cy="15" r="2.8" fill="currentColor"/></symbol>
+    <symbol id="i-vibrate" viewBox="0 0 24 24"><rect x="7.5" y="3.5" width="9" height="17" rx="2.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3.5 9v6M20.5 9v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-tap" viewBox="0 0 24 24"><circle cx="11" cy="7.5" r="4" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".6"/><path d="M11 7.5v8.2l-1.6-1.4a1.6 1.6 0 0 0-2.3 2.2l3.6 4.2c.6.7 1.4 1 2.3 1h3.3a3 3 0 0 0 3-2.7l.5-4.2a2 2 0 0 0-1.7-2.2l-4.6-.7V7.5a1.25 1.25 0 0 0-2.5 0z" fill="currentColor"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="9" width="17" height="4" rx="1" fill="currentColor"/><rect x="5" y="13" width="14" height="8" rx="1.5" fill="currentColor" opacity=".85"/><path d="M12 9v12" stroke="#000" stroke-opacity=".25" stroke-width="2"/><path d="M12 9c-2-4-6-4-6-1.5S10 9 12 9zm0 0c2-4 6-4 6-1.5S14 9 12 9z" fill="currentColor"/></symbol>
+    <symbol id="b-bom" viewBox="0 0 24 24"><circle cx="12" cy="13" r="9" fill="#ff3b3b"/><circle cx="12" cy="14" r="4.5" fill="#2a0610"/><path d="M14 8.5c1.5-2 3-2.5 3.5-4.5" stroke="#ffd23f" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="17.6" cy="4" r="1.5" fill="#fff"/></symbol>
+    <symbol id="b-belah" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#38e1ff"/><circle cx="8.5" cy="8.5" r="1.6" fill="#fff"/><circle cx="15.5" cy="8.5" r="1.6" fill="#fff"/><circle cx="8.5" cy="15.5" r="1.6" fill="#fff"/><circle cx="15.5" cy="15.5" r="1.6" fill="#fff"/><circle cx="12" cy="12" r="1.4" fill="#fff"/></symbol>
+    <symbol id="b-es" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#bff4ff"/><path d="M12 6.5v11M7.2 9.2l9.6 5.6M7.2 14.8l9.6-5.6" stroke="#1b6b8a" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="b-koin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#ffc83d"/><path d="M12 6.6l1.5 3.3 3.6.4-2.7 2.4.8 3.6L12 14.5l-3.2 1.8.8-3.6-2.7-2.4 3.6-.4z" fill="#8a5a00"/></symbol>
+    <symbol id="b-baja" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#c8d3e6"/><circle cx="12" cy="12" r="5.6" fill="none" stroke="#5b6b85" stroke-width="2.4"/></symbol>
+  </svg>
+
+  <canvas id="cv"></canvas>
+
+  <!-- HUD during play -->
+  <div id="hud" class="hidden">
+    <button class="icon-btn" id="btn-pause" aria-label="Jeda"><svg><use href="#i-pause"/></svg></button>
+    <div class="hud-mid">
+      <div class="hud-title" id="hud-title">LEVEL 1</div>
+      <div class="bar" id="hud-bar"><div class="fill" id="hud-fill"></div><div class="mark" id="hud-mark"></div></div>
+      <div class="hud-count" id="hud-count">0 / 1</div>
+    </div>
+    <div class="coins pill" id="hud-coins"><svg><use href="#i-coin"/></svg><span>0</span></div>
+  </div>
+  <div id="hint" class="hidden"><svg><use href="#i-tap"/></svg><span>Ketuk sekali di mana saja</span></div>
+  <button id="btn-super" class="hidden chip"><svg class="bolt"><use href="#i-bolt"/></svg><span class="lbl">Ledakan Super</span><span class="cost"></span></button>
+  <div id="intro" class="hidden"></div>
+
+  <!-- Home -->
+  <section id="home" class="screen">
+    <div class="topbar">
+      <div class="pill streak" id="home-streak" title="Hari beruntun"><svg><use href="#i-fire"/></svg><span>0</span></div>
+      <div class="pill coins" id="home-coins"><svg><use href="#i-coin"/></svg><span>0</span></div>
+    </div>
+    <div class="logo">
+      <h1 aria-label="LETUP!"><span>L</span><span>E</span><span>T</span><span>U</span><span>P</span><span>!</span></h1>
+      <p>Satu ketukan. Ledakan berantai.</p>
+    </div>
+    <div class="home-actions">
+      <button class="btn primary big" id="btn-play"><svg><use href="#i-play"/></svg><span>MAIN</span><small id="play-level">Level 1</small></button>
+      <div class="tiles">
+        <button class="tile" id="btn-daily"><svg><use href="#i-calendar"/></svg><span>Harian</span><i class="dot hidden" id="dot-daily"></i></button>
+        <button class="tile" id="btn-missions"><svg><use href="#i-target"/></svg><span>Misi</span><i class="badge hidden" id="badge-missions">0</i></button>
+        <button class="tile" id="btn-themes"><svg><use href="#i-palette"/></svg><span>Tema</span></button>
+        <button class="tile" id="btn-settings"><svg><use href="#i-gear"/></svg><span>Atur</span></button>
+      </div>
+      <div class="home-stats" id="home-stats"></div>
+    </div>
+  </section>
+
+  <!-- Modal sheets -->
+  <div id="modal" class="hidden">
+    <div class="sheet" id="sheet"></div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script src="js/levels-data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/meta.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ads-config.js"></script>
+  <script src="js/ads.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

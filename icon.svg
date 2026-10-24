@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d0b45"/><stop offset="1" stop-color="#0b0620"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff4d9d" stop-opacity=".55"/><stop offset="1" stop-color="#ff4d9d" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b1" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#ff4d9d"/><stop offset="1" stop-color="#c0136a"/></radialGradient>
+    <radialGradient id="b2" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#38e1ff"/><stop offset="1" stop-color="#0a7fa8"/></radialGradient>
+    <radialGradient id="b3" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#ffd23f"/><stop offset="1" stop-color="#c78a00"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="230" fill="url(#glow)"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#ff4d9d" stroke-width="10" opacity=".55"/>
+  <circle cx="256" cy="256" r="110" fill="#ff4d9d" opacity=".18"/>
+  <g stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".9">
+    <path d="M256 70v40M256 402v40M70 256h40M402 256h40M124 124l28 28M360 360l28 28M124 388l28-28M360 152l28-28"/>
+  </g>
+  <circle cx="256" cy="256" r="78" fill="url(#b1)"/>
+  <ellipse cx="228" cy="222" rx="24" ry="14" fill="#fff" opacity=".85" transform="rotate(-35 228 222)"/>
+  <circle cx="400" cy="120" r="42" fill="url(#b2)"/>
+  <circle cx="110" cy="410" r="36" fill="url(#b3)"/>
+  <circle cx="420" cy="400" r="22" fill="url(#b2)" opacity=".9"/>
+</svg>
