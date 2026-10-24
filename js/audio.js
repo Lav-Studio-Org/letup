@@ -14,12 +14,15 @@
 
   let ctx = null, master = null, sfxBus = null, musicBus = null, wet = null;
   let scale = SCALES.neon;
-  let voices = 0, lastNoteAt = 0, notesInWindow = 0;
+  // End times of scheduled voices. Counting by time (not onended) can never get stuck,
+  // even if the context was suspended while notes were queued.
+  let voiceEnds = [], lastNoteAt = 0, notesInWindow = 0;
   let musicTimer = null, musicStep = 0;
   const settings = { sound: true, music: true };
 
   function ensure() {
-    if (ctx) return ctx;
+    if (ctx && ctx.state !== 'closed') return ctx;
+    ctx = null; voiceEnds = [];
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     ctx = new AC();
@@ -75,8 +78,8 @@
     g.gain.exponentialRampToValueAtTime(0.0001, now + a + d);
     o.connect(g);
     o.start(now); o.stop(now + a + d + 0.05);
-    voices++;
-    o.onended = () => { voices--; g.disconnect(); };
+    voiceEnds.push(now + a + d + 0.05);
+    o.onended = () => g.disconnect();
   }
 
   function noteFreq(i) {
@@ -88,12 +91,46 @@
     return scale.root * Math.pow(2, semi / 12);
   }
 
-  function ok() { return settings.sound && ensure() && ctx.state !== 'closed'; }
+  function busyVoices() {
+    const t = ctx.currentTime;
+    if (voiceEnds.length > 64) voiceEnds = voiceEnds.filter((e) => e > t);
+    let n = 0;
+    for (const e of voiceEnds) if (e > t) n++;
+    return n;
+  }
+
+  // Only schedule sound while the context is actually running. A suspended or
+  // interrupted context (autoplay policy, tab switch, iOS after a call or an ad)
+  // would otherwise pile up silent notes; instead we try to wake it.
+  function ok() {
+    if (!settings.sound || !ensure()) return false;
+    if (ctx.state !== 'running') { resume(); return false; }
+    return true;
+  }
+
+  function resume() {
+    if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
+    try { const pr = ctx.resume(); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* ignore */ }
+  }
+
+  // iOS only unlocks audio from inside a user gesture, and sometimes needs a sound to
+  // actually start in that gesture, so play one silent sample too.
+  function unlock() {
+    if (!ensure()) return;
+    resume();
+    try {
+      const b = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = b; src.connect(ctx.destination); src.start(0);
+    } catch (e) { /* ignore */ }
+    if (master) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(ducked ? 0 : 0.9, ctx.currentTime); }
+  }
+  let ducked = false;
 
   LP.Sfx = {
     SCALES,
     settings,
-    unlock() { if (ensure() && ctx.state === 'suspended') ctx.resume(); },
+    unlock,
     set(key, val) { settings[key] = val; applySettings(); if (key === 'music') val ? this.musicStart() : this.musicStop(); },
     setTheme(id) { scale = SCALES[id] || SCALES.neon; },
 
@@ -102,7 +139,7 @@
       if (!ok()) return;
       const now = performance.now();
       if (now - lastNoteAt > 35) { lastNoteAt = now; notesInWindow = 0; }
-      if (++notesInWindow > 3 || voices > 40) return;
+      if (++notesInWindow > 3 || busyVoices() > 40) return;
       const f = noteFreq(Math.max(0, chain - 1));
       const pan = (x - 0.5) * 1.4;
       const vol = Math.min(0.2, 0.12 + chain * 0.004);
@@ -137,14 +174,24 @@
     click() { if (ok()) tone({ f: 660, f0: 900, type: 'sine', d: 0.07, vol: 0.08 }); },
     star(i) { if (ok()) tone({ f: noteFreq(7 + i * 2), type: 'triangle', d: 0.4, vol: 0.13 }); },
 
-    duck(on) { if (master) master.gain.setTargetAtTime(on ? 0 : 0.9, ctx.currentTime, 0.05); },
+    get _ctx() { return ctx; },
+    _debug() { return { state: ctx && ctx.state, voices: ctx ? busyVoices() : 0, gain: master && master.gain.value }; },
+    duck(on) {
+      ducked = on;
+      if (!master) return;
+      const g = master.gain, t = ctx.currentTime;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(on ? 0 : 0.9, t + 0.08);
+      if (!on) resume();
+    },
 
     // gentle generative pad in the theme's key
     musicStart() {
       if (musicTimer || !settings.music || !ensure()) return;
       const chords = [[0, 2, 4], [3, 0, 2], [1, 3, 0], [2, 4, 1]];
       const play = () => {
-        if (!settings.music || !ctx) return;
+        if (!settings.music || !ctx || ctx.state !== 'running') return;
         const ch = chords[musicStep++ % chords.length];
         const now = ctx.currentTime;
         for (const deg of ch) {
@@ -170,6 +217,12 @@
 
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return;
-    if (document.hidden) ctx.suspend(); else ctx.resume();
+    if (document.hidden) { try { ctx.suspend(); } catch (e) { /* ignore */ } } else resume();
   });
+  window.addEventListener('pageshow', resume);
+  window.addEventListener('focus', resume);
+  // Any gesture anywhere wakes the audio again (some browsers only accept touchend/click).
+  for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) {
+    document.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running') unlock(); }, { capture: true, passive: true });
+  }
 })();

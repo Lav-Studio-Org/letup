@@ -621,7 +621,7 @@
       </div>
       <h3 style="margin:18px 0 0;font-size:17px">Gelembung spesial</h3>
       <div class="legend">${Object.keys(SPECIALS).map((k) => `<div>${ic('b-' + k)}<span><b style="color:#fff">${SPECIALS[k].title.replace('Gelembung ', '')}</b>: ${SPECIALS[k].text}</span></div>`).join('')}</div>
-      <p class="note">LETUP! v1.0 &middot; Satu ketukan per level. Rantai 15+ memicu FEVER: semua ledakan jadi lebih besar.</p>`);
+      <p class="note">LETUP! v1.0.1 &middot; Satu ketukan per level. Rantai 15+ memicu FEVER: semua ledakan jadi lebih besar.</p>`);
     bindToggles(s);
   }
 
