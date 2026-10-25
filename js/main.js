@@ -6,7 +6,7 @@
   const $ = (s) => document.querySelector(s);
   const ic = (id, cls = '') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
   const DT = 1 / 120;
-  const URL_GAME = 'https://lavaruz.github.io/letup/';
+  const URL_GAME = 'https://lav-studio-org.github.io/letup/';
 
   const SPECIALS = {
     koin: { title: 'Gelembung Koin', text: 'Letupkan untuk dapat +3 koin.' },
