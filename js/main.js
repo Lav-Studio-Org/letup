@@ -17,7 +17,7 @@
     hantu: { title: 'Gelembung Hantu', text: 'Timbul tenggelam. Cuma bisa kena saat terlihat.' },
     magnet: { title: 'Gelembung Magnet', text: 'Saat meletup, menarik gelembung di sekitarnya.' },
   };
-  const BOSS_INFO = { title: 'Level Bos!', text: 'Kalahkan Raja Gelembung. Kamu punya 2 ketukan.' };
+  const BOSS_INFO = { title: 'Level Bos!', text: 'Tiap ledakan yang mengenai Raja Gelembung = 1 HP.' };
   const WORDS = { 5: 'Mantap!', 10: 'Keren!', 25: 'GILA!', 40: 'LUAR BIASA!', 60: 'LEGENDA!' };
   const SCALE_NAMES = { neon: 'Nada pentatonik ceria', permen: 'Nada kotak musik', laut: 'Nada minor tenang', galaksi: 'Nada Jepang hirajoshi', api: 'Nada blues' };
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -127,7 +127,15 @@
     $('#badge-missions').classList.toggle('hidden', !n);
     $('#dot-daily').classList.toggle('hidden', LP.dailyTriesLeft() <= 0);
     const st = LP.totalStars();
-    $('#home-stats').innerHTML = p.games ? `Bintang <b>${st}</b> &middot; Rantai terbaik <b>x${p.bestChain}</b> &middot; Total letupan <b>${p.totalPops}</b>` : '';
+    $('#home-stats').innerHTML = p.games ? nextGoalText(fr, st, p) : '';
+  }
+  // one line that says what to chase next, instead of lifetime numbers
+  function nextGoalText(fr, st, p) {
+    const c = E.chapterOf(fr);
+    const gate = c < E.CHAPTERS.length ? E.chapterGate(c + 1) : 0;
+    if (gate > st) return `${ic('i-lock')} Bab ${c + 1} butuh <b>${gate}</b> ${ic('i-star')} &middot; kurang <b>${gate - st}</b>`;
+    if (E.levelShape(fr).kind === 'boss') return `${ic('i-crown')} Bos Bab ${c} menunggu &middot; rantai terbaik <b>x${p.bestChain}</b>`;
+    return `Bab ${c}: <b>${E.CHAPTERS[c - 1].name}</b> &middot; ${ic('i-star')} <b>${LP.chapterStars(c)}</b>/30 &middot; rantai terbaik <b>x${p.bestChain}</b>`;
   }
 
   // ---------- play setup ----------
@@ -163,7 +171,10 @@
     const p = P();
     p.seen = p.seen || [];
     p.chapterSeen = p.chapterSeen || [];
-    const fresh = Object.keys(SPECIALS).find((t) => cfg.specials[t] > 0 && !p.seen.includes(t));
+    // the chapter's own new mechanic comes first, so a player who jumps ahead meets what the chapter is about
+    const unseen = (t) => cfg.specials[t] > 0 && !p.seen.includes(t);
+    const chIntro = E.CHAPTERS[cfg.chapter - 1].intro;
+    const fresh = chIntro && unseen(chIntro) ? chIntro : Object.keys(SPECIALS).find(unseen);
     const intro = $('#intro');
     intro.style.color = '';
     if (cfg.kind === 'boss') {
@@ -207,7 +218,7 @@
     const bossLv = mode === 'level' && world.cfg.boss;
     hint.querySelector('span').textContent = world.tapsUsed > 0 ? (bossLv && world.tapsLeft > 0 && !extraUsed ? 'Ketukan kedua! Habisi bosnya' : 'Ketukan bonus! Ketuk sekali lagi')
       : first ? 'Ketuk sekali, lihat ledakannya berantai!' : mode === 'daily' ? 'Board sama untuk semua pemain hari ini'
-      : bossLv ? 'Bos punya perisai. Kamu punya 2 ketukan' : 'Ketuk sekali di mana saja';
+      : bossLv ? 'Kamu punya 2 ketukan. Mulai dekat bos' : 'Ketuk sekali di mana saja';
     hint.classList.remove('hidden');
     updateSuper();
   }
@@ -327,7 +338,7 @@
           if (ev.kind === 'magnet') R.ring(ev.x, ev.y, '#ff5a7a', 120, 4);
           if (mode === 'level' && !w.cfg.boss && !targetHit && w.popped >= w.target) {
             targetHit = true;
-            R.text('TARGET!', { y: E.H * 0.52, size: 40, color: '#7cff6b', life: 1.1 });
+            R.text('TARGET!', { y: E.H * 0.6, size: 40, color: '#7cff6b', life: 1.1 });
             S.coin();
             const bar = $('#hud-bar'); bar.classList.remove('pulse'); void bar.offsetWidth; bar.classList.add('pulse');
           }
@@ -499,11 +510,18 @@
     const boss = w.boss;
     const miss = boss ? boss.hp : w.target - w.popped;
     const pct = boss ? Math.round(100 * (boss.maxHp - boss.hp) / boss.maxHp) : Math.round(100 * w.popped / w.target);
+    // a total miss needs advice, not a big "Kurang 39"
+    const whiff = !boss && w.bestChain <= 1;
+    const title = whiff ? 'Meleset!' : miss <= (boss ? 1 : 2) ? 'Tipis banget!' : pct >= 70 ? 'Hampir!' : 'Ayo, sekali lagi!';
+    const tip = boss ? 'Mulai rantai di dekat bos, tiap ledakan yang mengenainya = 1 HP'
+      : whiff ? 'Ketuk di tengah kumpulan gelembung yang rapat, bukan di ruang kosong'
+      : pct < 50 ? 'Tunggu gelembung berkumpul dulu, lalu ketuk di tengahnya' : 'Sedikit lagi! Cari kumpulan yang paling padat';
     const sheet = openSheet(`
-      <h2>${miss <= (boss ? 1 : 2) ? 'Tipis banget!' : pct >= 70 ? 'Hampir!' : 'Ayo, sekali lagi!'}</h2>
-      <div class="big-num miss">${boss ? `Bos sisa ${miss} HP` : `Kurang ${miss}`}</div>
+      <h2>${title}</h2>
+      <div class="big-num miss ${whiff ? 'word' : ''}">${boss ? `Bos sisa ${miss} HP` : whiff ? 'Tidak ada rantai' : `Kurang ${miss}`}</div>
       <div class="prog"><i style="width:${pct}%"></i></div>
-      <p class="near">${boss ? 'Tip: kenai bos dengan banyak ledakan berbeda, tiap ledakan = 1 HP' : `${w.popped} dari ${w.target} gelembung`} &middot; rantai terbaik x${w.bestChain}</p>
+      <p class="near">${boss ? `HP bos ${boss.maxHp - boss.hp}/${boss.maxHp} berkurang` : `${w.popped} dari ${w.target} gelembung`}${w.bestChain > 1 ? ` &middot; rantai terbaik x${w.bestChain}` : ''}</p>
+      <p class="tip">${ic('i-target')}<span>${tip}</span></p>
       <div class="actions">
         ${extraUsed ? '' : `<button class="btn ad" id="r-extra">${ic('i-video')}<span>+1 Ketukan, lanjut dari sini</span></button>`}
         <button class="btn primary" id="r-retry">${ic('i-retry')}<span>Coba Lagi</span></button>
@@ -611,11 +629,11 @@
           <div class="item ${m.claimed ? 'done' : ''}">
             <div class="grow">
               <div class="t">${m.text}</div>
-              <div class="s">${ic('i-coin')} ${m.reward} &middot; ${Math.min(m.progress, m.goal)}/${m.goal}</div>
-              <div class="mini"><i style="width:${100 * Math.min(1, m.progress / m.goal)}%"></i></div>
+              <div class="mini-row"><div class="mini"><i style="width:${100 * Math.min(1, m.progress / m.goal)}%"></i></div><span>${Math.min(m.progress, m.goal)}/${m.goal}</span></div>
             </div>
-            ${m.claimed ? `<span style="color:#7cff6b;width:28px;height:28px">${ic('i-check')}</span>`
-              : m.done ? `<div style="display:flex;flex-direction:column;gap:6px"><button class="btn primary" data-claim="${m.id}">Ambil</button><button class="btn ad" data-claim2="${m.id}">${ic('i-video')}2x</button></div>` : ''}
+            ${m.claimed ? `<span class="claimed">${ic('i-check')}</span>`
+              : m.done ? `<div class="claim-col"><button class="btn primary" data-claim="${m.id}">${ic('i-coin')}${m.reward}</button><button class="btn ad" data-claim2="${m.id}">${ic('i-video')}${m.reward * 2}</button></div>`
+              : `<span class="reward">${ic('i-coin')}${m.reward}</span>`}
           </div>`).join('')}
         </div>`, { onClose: refreshHome });
       s.querySelectorAll('[data-claim]').forEach((b) => (b.onclick = () => { LP.claimMission(b.dataset.claim, 1); S.coin(); render(); }));
@@ -634,9 +652,6 @@
       const p = P(), left = LP.freeCoinsLeft();
       const s = openSheet(`
         ${head('Tema', 'Tiap tema punya warna dan nada musik sendiri')}
-        <div class="actions" style="margin:0 0 14px">
-          <button class="btn ad" id="t-free" ${left <= 0 ? 'disabled' : ''}>${ic('i-video')}<span>+${LP.FREE_COINS} koin gratis (${left})</span></button>
-        </div>
         <div class="list">${LP.THEMES.map((t) => {
           const owned = p.themes.includes(t.id), used = p.theme === t.id;
           const dots = t.colors.slice(0, 5).map((c, i) => `<i style="background:${c};color:${c};left:${6 + (i % 3) * 18 + (i > 2 ? 9 : 0)}px;top:${i > 2 ? 28 : 8}px"></i>`).join('');
@@ -645,9 +660,12 @@
             <div class="grow"><div class="t">${t.name}</div><div class="s">${ic('i-music')} ${SCALE_NAMES[t.id]}</div></div>
             ${used ? `<span class="btn" style="pointer-events:none">Dipakai</span>`
               : owned ? `<button class="btn" data-use="${t.id}">Pakai</button>`
-              : `<button class="btn gold" data-buy="${t.id}">${ic('i-coin')}${t.price}</button>`}
+              : `<button class="btn gold ${p.coins < t.price ? 'short' : ''}" data-buy="${t.id}">${ic('i-coin')}${t.price}</button>`}
           </div>`;
-        }).join('')}</div>`, { onClose: refreshHome });
+        }).join('')}</div>
+        <div class="wallet">${ic('i-coin')}<span>Koinmu <b>${p.coins}</b></span>
+          <button class="btn ad" id="t-free" ${left <= 0 ? 'disabled' : ''}>${ic('i-video')}<span>+${LP.FREE_COINS} (${left})</span></button>
+        </div>`, { onClose: refreshHome });
       s.querySelector('#t-free').onclick = async () => {
         if (LP.freeCoinsLeft() <= 0) return;
         const ok = await LP.Ads.rewarded('free_coins');
@@ -705,7 +723,7 @@
       </div>
       <h3 class="section-title">Gelembung spesial</h3>
       <div class="legend">${Object.keys(SPECIALS).map((k) => `<div>${ic('b-' + k)}<span><b>${SPECIALS[k].title.replace('Gelembung ', '')}</b>${SPECIALS[k].text}</span></div>`).join('')}</div>
-      <p class="note">LETUP! v1.2 &middot; Satu ketukan per level. Rantai 15+ memicu FEVER: semua ledakan jadi lebih besar.</p>`);
+      <p class="note">LETUP! v1.3 &middot; Satu ketukan per level. Rantai 15+ memicu FEVER: semua ledakan jadi lebih besar.</p>`);
     bindToggles(s);
   }
 
@@ -714,28 +732,36 @@
     S.click();
     const p = P(), total = LP.totalStars(), fr = LP.frontier();
     const focus = focusLevel || fr;
+    const frCh = E.chapterOf(fr);
     const chapters = E.MAX_LEVEL / E.CHAPTER_SIZE;
     let html = '';
     for (let c = 1; c <= chapters; c++) {
       const gate = E.chapterGate(c);
       const first = (c - 1) * E.CHAPTER_SIZE + 1;
       const gated = c > 1 && LP.lockReason(first) === 'stars';
-      const reached = c === 1 || p.stars[first - 1] > 0 || first <= p.legacyMax;
       const cs = LP.chapterStars(c);
+      const hdr = `<header><div><small>BAB ${c}</small><b>${E.CHAPTERS[c - 1].name}</b></div>
+        <span class="ch-stars">${ic('i-star')}${cs}/30</span></header>`;
+      // chapters two or more steps ahead collapse to one line, so the map is about the next goal
+      if (c > frCh + 1 && cs === 0) {
+        html += `<section class="chapter mini" id="ch-${c}"><header><div><small>BAB ${c}</small><b>${E.CHAPTERS[c - 1].name}</b></div>
+          <span class="ch-lock">${ic('i-lock')}${gate}</span></header></section>`;
+        continue;
+      }
       let nodes = '';
       for (let L = first; L < first + E.CHAPTER_SIZE; L++) {
         const st = p.stars[L] || 0, open = LP.isUnlocked(L), cfg = E.levelShape(L);
         const cls = ['node', cfg.kind, open ? 'open' : 'locked', L === fr ? 'current' : '', st ? 'done' : ''].join(' ');
-        nodes += `<button class="${cls}" data-lv="${L}" aria-label="Level ${L}">
+        nodes += `<button class="${cls}" data-lv="${L}" aria-label="Level ${L}${open ? '' : ', terkunci'}">
           ${cfg.kind === 'boss' ? ic('i-crown', 'crown') : ''}
           <span class="num">${open ? L : ic('i-lock')}</span>
-          <span class="mini-stars">${[0, 1, 2].map((i) => `<i class="${i < st ? 'on' : ''}"></i>`).join('')}</span>
+          ${open ? `<span class="mini-stars">${[0, 1, 2].map((i) => `<i class="${i < st ? 'on' : ''}"></i>`).join('')}</span>` : ''}
         </button>`;
       }
-      html += `<section class="chapter ${gated ? 'gated' : ''} ${!reached && !gated ? 'far' : ''}" id="ch-${c}">
-        <header><div><small>BAB ${c}</small><b>${E.CHAPTERS[c - 1].name}</b></div>
-        <span class="ch-stars">${ic('i-star')}${cs}/30</span></header>
-        ${gated ? `<div class="gate">${ic('i-lock')}<span>Butuh <b>${gate}</b> bintang untuk membuka bab ini. Kamu punya <b>${total}</b>.</span></div>` : ''}
+      html += `<section class="chapter ${gated ? 'gated' : ''} ${c === frCh ? 'here' : ''}" id="ch-${c}">
+        ${hdr}
+        <div class="ch-prog"><i style="width:${100 * cs / 30}%"></i></div>
+        ${gated ? `<div class="gate">${ic('i-lock')}<span>Butuh <b>${gate}</b> bintang untuk membuka bab ini. Kurang <b>${gate - total}</b>, ulangi level lama untuk bintang 2 dan 3.</span></div>` : ''}
         <div class="nodes">${nodes}</div>
       </section>`;
     }
@@ -743,6 +769,9 @@
     m.querySelector('.map-stars span').textContent = total;
     const list = m.querySelector('.map-list');
     list.innerHTML = html;
+    const cta = $('#map-cta');
+    cta.querySelector('span').textContent = `Main Level ${fr}`;
+    cta.onclick = () => { S.click(); m.classList.add('hidden'); startLevel(fr); };
     m.classList.remove('hidden');
     $('#home').classList.add('hidden');
     const target = list.querySelector(`[data-lv="${focus}"]`);
@@ -753,10 +782,21 @@
       const L = +b.dataset.lv, why = LP.lockReason(L);
       if (why === 'stars') { toast(`Kumpulkan ${E.chapterGate(E.chapterOf(L)) - LP.totalStars()} bintang lagi`); return; }
       if (why) { toast('Selesaikan level sebelumnya dulu'); return; }
-      S.click();
-      m.classList.add('hidden');
-      startLevel(L);
+      levelPreview(L);
     };
+  }
+
+  // tapping a level on the map shows what each star costs before playing
+  function levelPreview(L) {
+    S.click();
+    const cfg = E.levelConfig(L), st = P().stars[L] || 0;
+    const kind = cfg.kind === 'boss' ? 'Level Bos' : cfg.kind === 'bonus' ? 'Level Bonus' : 'Level';
+    const s = openSheet(`${head(`${kind} ${L}`, `Bab ${cfg.chapter} &middot; ${E.CHAPTERS[cfg.chapter - 1].name}`)}
+      <div class="stars shown">${[0, 1, 2].map((i) => ic(i < st ? 'i-star' : 'i-star-off')).join('')}</div>
+      <div class="goals">${goalRows(cfg)}</div>
+      ${Object.keys(SPECIALS).some((t) => cfg.specials[t] > 0) ? `<div class="spec-row">${Object.keys(SPECIALS).filter((t) => cfg.specials[t] > 0).map((t) => `<span title="${SPECIALS[t].title}">${ic('b-' + t)}</span>`).join('')}</div>` : ''}
+      <div class="actions"><button class="btn primary" id="lp-play">${ic('i-play')}<span>${st ? 'Main Lagi' : 'Main'}</span></button></div>`);
+    s.querySelector('#lp-play').onclick = () => { S.click(); closeSheet(); $('#map').classList.add('hidden'); startLevel(L); };
   }
   function closeMap() { $('#map').classList.add('hidden'); $('#home').classList.remove('hidden'); refreshHome(); }
 
@@ -819,13 +859,27 @@
     };
   }
 
+  // what this attempt is worth, shown in pause and the level preview
+  function goalRows(cfg) {
+    if (cfg.mode !== 'level') return '';
+    if (cfg.boss) return `<div class="goal"><span>${ic('i-crown')}Kalahkan bos</span><b>${cfg.boss} HP</b></div><div class="goal"><span>${ic('i-tap')}Ketukan</span><b>${cfg.taps}</b></div>`;
+    return [[1, cfg.target], [2, cfg.s2], [3, cfg.s3]].map(([n, v]) =>
+      `<div class="goal"><span class="gs">${[0, 1, 2].map((i) => ic(i < n ? 'i-star' : 'i-star-off')).join('')}</span><b>${v} gelembung</b></div>`).join('');
+  }
+  function goalCard() {
+    if (mode !== 'level' || !world) return '';
+    return `<div class="goals"><p class="goals-h">${world.cfg.kind === 'boss' ? 'Bos' : 'Level'} ${world.cfg.level} &middot; sekarang ${world.popped} meletup</p>${goalRows(world.cfg)}</div>`;
+  }
+
   function pause() {
     if (state === 'home' || state === 'result' || paused) return;
     S.click();
     paused = true;
+    $('#intro').classList.add('hidden');
     const s = openSheet(`
       <h2>Jeda</h2>
-      <div class="list" style="margin-top:14px">${toggleRow('sound', 'i-sound', 'Suara')}${toggleRow('music', 'i-music', 'Musik latar')}</div>
+      ${goalCard()}
+      <div class="list" style="margin-top:14px">${toggleRow('sound', 'i-sound', 'Suara')}${toggleRow('music', 'i-music', 'Musik latar')}${toggleRow('vibrate', 'i-vibrate', 'Getar')}</div>
       <div class="actions">
         <button class="btn primary" id="p-resume">${ic('i-play')}<span>Lanjut</span></button>
         <div class="row">
