@@ -44,6 +44,9 @@
     sprites.baja = makeSprite('#c8d3e6');
     sprites.bom = makeSprite('#ff3b3b');
     sprites.es = makeSprite('#bff4ff');
+    sprites.hantu = makeSprite('#e6e0ff');
+    sprites.magnet = makeSprite('#ff5a7a');
+    sprites.bos = makeSprite(t.glow);
   }
 
   function resize() {
@@ -143,11 +146,48 @@
           cx.beginPath(); cx.moveTo(-R * 0.5, -R * 0.4); cx.lineTo(-R * 0.05, 0); cx.lineTo(-R * 0.2, R * 0.2); cx.lineTo(R * 0.45, R * 0.5); cx.stroke();
         }
         break;
+      case 'hantu':
+        cx.fillStyle = '#2b2350';
+        cx.beginPath(); cx.ellipse(-R * 0.28, -R * 0.08, R * 0.14, R * 0.22, 0, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.ellipse(R * 0.28, -R * 0.08, R * 0.14, R * 0.22, 0, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#2b2350'; cx.lineWidth = 1.3;
+        cx.beginPath(); cx.arc(0, R * 0.28, R * 0.16, 0.1 * Math.PI, 0.9 * Math.PI); cx.stroke();
+        break;
+      case 'magnet':
+        cx.lineWidth = R * 0.26;
+        cx.strokeStyle = '#ffffff';
+        cx.beginPath(); cx.arc(0, -R * 0.05, R * 0.36, Math.PI, 0); cx.lineTo(R * 0.36, R * 0.42); cx.moveTo(-R * 0.36, -R * 0.05); cx.lineTo(-R * 0.36, R * 0.42); cx.stroke();
+        cx.strokeStyle = '#2b2350'; cx.lineWidth = R * 0.26; cx.lineCap = 'butt';
+        cx.beginPath(); cx.moveTo(-R * 0.36, R * 0.22); cx.lineTo(-R * 0.36, R * 0.46); cx.moveTo(R * 0.36, R * 0.22); cx.lineTo(R * 0.36, R * 0.46); cx.stroke();
+        break;
+      case 'bos': {
+        // crown
+        cx.fillStyle = '#ffd23f'; cx.strokeStyle = '#8a5a00'; cx.lineWidth = 1.2;
+        const cw2 = R * 0.62, top = -R * 1.25, base = -R * 0.72;
+        cx.beginPath();
+        cx.moveTo(-cw2, base); cx.lineTo(-cw2, top + R * 0.15); cx.lineTo(-cw2 * 0.5, base - R * 0.22); cx.lineTo(0, top);
+        cx.lineTo(cw2 * 0.5, base - R * 0.22); cx.lineTo(cw2, top + R * 0.15); cx.lineTo(cw2, base); cx.closePath();
+        cx.fill(); cx.stroke();
+        // face
+        cx.fillStyle = '#1a0b3d';
+        cx.beginPath(); cx.arc(-R * 0.3, -R * 0.05, R * 0.12, 0, Math.PI * 2); cx.arc(R * 0.3, -R * 0.05, R * 0.12, 0, Math.PI * 2); cx.fill();
+        cx.lineWidth = 2; cx.strokeStyle = '#1a0b3d';
+        cx.beginPath(); cx.moveTo(-R * 0.5, -R * 0.32); cx.lineTo(-R * 0.15, -R * 0.2); cx.moveTo(R * 0.5, -R * 0.32); cx.lineTo(R * 0.15, -R * 0.2); cx.stroke();
+        // HP pips around the bottom
+        const n = b.maxHp;
+        for (let k = 0; k < n; k++) {
+          const a = Math.PI * 0.2 + (k / Math.max(1, n - 1)) * Math.PI * 0.6;
+          cx.fillStyle = k < b.hp ? '#7cff6b' : 'rgba(255,255,255,0.2)';
+          cx.beginPath(); cx.arc(Math.cos(a) * R * 1.22, Math.sin(a) * R * 1.22, 2.6, 0, Math.PI * 2); cx.fill();
+        }
+        break;
+      }
     }
     cx.restore();
   }
 
   function drawWorld(w, dt) {
+    const baseA = cx.globalAlpha;
     const frozen = w.freeze > 0;
     // blasts first, additive
     cx.globalCompositeOperation = 'lighter';
@@ -162,18 +202,25 @@
       cx.fillStyle = hexA(c, 0.25 * fade);
       cx.beginPath(); cx.arc(bl.x, bl.y, bl.r * 0.45, 0, Math.PI * 2); cx.fill();
     }
+    for (const p of w.pulls || []) {
+      cx.strokeStyle = hexA('#ff5a7a', Math.min(1, p.t * 1.5) * 0.6); cx.lineWidth = 2;
+      cx.beginPath(); cx.arc(p.x, p.y, 120 * (p.t / 0.8), 0, Math.PI * 2); cx.stroke();
+    }
     cx.globalCompositeOperation = 'source-over';
 
     for (const b of w.bubbles) {
       if (!b.alive) continue;
-      const pulse = 1 + 0.06 * Math.sin(fx.t * 3 + b.phase);
-      const R = b.r * 1.2 * pulse;
+      const boss = b.type === 'bos';
+      const pulse = 1 + (boss ? 0.04 : 0.06) * Math.sin(fx.t * (boss ? 2 : 3) + b.phase);
+      const R = b.r * (boss ? 1.1 : 1.2) * pulse;
       const spr = sprites[b.type === 'normal' || b.type === 'belah' ? b.color : b.type] || sprites[0];
       const S = R * (96 / 36) * 2;
-      cx.globalAlpha = b.immune > 0 ? 0.6 : 1;
+      let a = b.immune > 0 ? 0.6 : 1;
+      if (b.type === 'hantu' && !E.ghostVisible(w, b)) a = 0.16 + 0.08 * Math.sin(fx.t * 20);
+      cx.globalAlpha = baseA * a;
       cx.drawImage(spr, b.x - S / 2, b.y - S / 2, S, S);
-      cx.globalAlpha = 1;
       if (b.type !== 'normal') drawIcon(b, R);
+      cx.globalAlpha = baseA;
       if (frozen) { cx.strokeStyle = 'rgba(190,240,255,0.7)'; cx.lineWidth = 1.2; cx.beginPath(); cx.arc(b.x, b.y, R + 2, 0, Math.PI * 2); cx.stroke(); }
     }
   }

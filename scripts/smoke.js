@@ -45,6 +45,7 @@ fs.mkdirSync(out, { recursive: true });
     if (await page.$('.ad-mock')) { await page.waitForSelector('.ad-close:not([disabled])'); await page.click('.ad-close'); await page.waitForTimeout(400); }
     const lvl = await page.evaluate(() => window.__letup.world.cfg.level);
     r = await playOnce(i === 2 ? `${out}/5-chain-l${lvl}.png` : null);
+    while (r.state === 'ready') r = await playOnce(null); // boss levels have a second tap
     console.log('level', lvl, r);
     if (r.state === 'result' && r.popped < r.target && i === 3) await page.screenshot({ path: `${out}/6-lose.png` });
   }
@@ -69,6 +70,16 @@ fs.mkdirSync(out, { recursive: true });
     await page.screenshot({ path: `${out}/${name}.png` });
     await page.click('#sheet [data-close]'); await page.waitForTimeout(200);
   }
+  await page.click('#btn-map'); await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/14-map.png` });
+  await page.click('#map-back'); await page.waitForTimeout(300);
+  await page.click('#btn-chest', { force: true }); await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/15-chest.png` });
+  await page.click('#sheet [data-close]'); await page.waitForTimeout(300);
+  await page.evaluate(() => { window.LP.profile.login = { last: '', day: 3 }; window.__letup.loginSheet(); });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/16-login.png` });
+  await page.click('#l-claim'); await page.waitForTimeout(300);
   const prof = await page.evaluate(() => window.LP.profile);
   console.log('profile', { level: prof.level, coins: prof.coins, games: prof.games, wins: prof.wins, bestChain: prof.bestChain });
   console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'no page errors');

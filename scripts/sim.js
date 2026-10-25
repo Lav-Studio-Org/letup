@@ -8,21 +8,23 @@ function pick(w, rng, aim) {
   for (let k = 0; k < (aim ? 12 : 1); k++) {
     const x = rng() * E.W, y = rng() * E.H;
     let n = 0;
-    for (const b of w.bubbles) if ((b.x - x) ** 2 + (b.y - y) ** 2 < (E.BLAST_R * 1.1) ** 2) n++;
+    for (const b of w.bubbles) if (b.alive && (b.x - x) ** 2 + (b.y - y) ** 2 < (E.BLAST_R * 1.1) ** 2) n += b.type === 'bos' ? 3 : 1;
     if (n > bestN) { bestN = n; best = [x, y]; }
   }
   return best;
 }
 
+// Plays every tap the board allows (boss levels have two), each after a random wait.
 function attempt(cfg, rng, aim) {
   const w = E.createWorld(cfg);
-  const tapAt = 0.3 + rng() * 3;
-  let tapped = false;
-  for (let t = 0; t < 30; t += DT) {
-    if (!tapped && t >= tapAt) { E.tap(w, ...pick(w, rng, aim)); tapped = true; }
+  let nextTap = 0.3 + rng() * 3;
+  for (let t = 0; t < 60; t += DT) {
+    if (!w.active && w.tapsLeft > 0 && t >= nextTap) E.tap(w, ...pick(w, rng, aim));
     E.step(w, DT);
+    for (const ev of w.events) if (ev.type === 'chainEnd') nextTap = t + 0.3 + rng() * 1.5;
     w.events.length = 0;
-    if (tapped && !w.active) break;
+    if (!w.active && w.tapsLeft === 0 && w.tapsUsed > 0) break;
+    if (E.won(w) && w.cfg.boss && !w.active) break;
   }
   return w;
 }

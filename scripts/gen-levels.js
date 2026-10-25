@@ -1,41 +1,92 @@
-// Computes each level's target so an aimed tap wins with a planned probability,
-// then writes js/levels-data.js. Usage: node scripts/gen-levels.js [tries]
+// Level designer's tool. For every level it simulates many aimed attempts on the exact
+// board and picks the target and star thresholds so that one aimed attempt reaches them
+// with a planned probability. Boss HP is tuned the same way. Writes js/levels-data.js.
+// Usage: node scripts/gen-levels.js [tries] [from] [to] [--boss]
 const fs = require('fs');
 const path = require('path');
 const { E, attempt } = require('./sim.js');
 const tries = Number(process.argv[2] || 240);
+const from = Number(process.argv[3] || 1), to = Number(process.argv[4] || E.MAX_LEVEL);
 
-// Planned win chance of one aimed tap: gentle start, then a wave so a hard level
-// is followed by a breather. Bonus levels are almost free.
-function plan(L, kind) {
-  if (kind === 'bonus') return 0.9;
-  if (L <= 4) return [0.95, 0.9, 0.85, 0.75][L - 1];
-  const base = Math.max(0.62 - (L - 5) * 0.025, 0.36);
-  const wave = 0.12 * Math.sin(L * 1.3);
-  return Math.min(0.75, Math.max(0.22, base + wave));
+// Planned chance that one aimed attempt reaches 1 / 2 / 3 stars.
+// Each chapter starts easier than the previous chapter ended (a saw-tooth), so a new
+// chapter feels like a reward, and the curve slowly tightens over 20 chapters.
+function plan(cfg) {
+  const c = cfg.chapter, i = cfg.index;
+  const base = Math.max(0.93 - (c - 1) * 0.026, 0.42);
+  let p1;
+  if (cfg.kind === 'bonus') p1 = 0.92;
+  else if (cfg.kind === 'boss') p1 = Math.max(base - 0.14, 0.3);
+  else p1 = Math.max(base - (i > 4 ? i - 1 : i) * 0.03, 0.26);
+  if (c === 1 && i < 3) p1 = Math.max(p1, 0.95);
+  const p2 = p1 * 0.5;
+  const p3 = Math.max(0.07, p1 * (c === 1 ? 0.26 : 0.2));
+  return [p1, p2, p3];
 }
 
-const targets = [];
-for (let L = 1; L <= E.MAX_TABLE; L++) {
-  const cfg = E.levelShape(L);
-  const rng = E.mulberry32(L * 104729);
+function run(cfg, n) {
+  const rng = E.mulberry32(cfg.level * 104729 + (cfg.boss || 0) * 7 + (cfg.variant || 0) * 13);
   const pops = [];
-  for (let i = 0; i < tries; i++) pops.push(attempt(cfg, rng, true).popped);
+  let wins = 0;
+  for (let i = 0; i < n; i++) {
+    const w = attempt(cfg, rng, true);
+    const ok = E.won(w);
+    if (ok) wins++;
+    pops.push(cfg.boss ? (ok ? w.popped : -1) : w.popped);
+  }
   pops.sort((a, b) => b - a);
-  const p = plan(L, cfg.kind);
-  // largest target that at least p of the attempts reach
-  const idx = Math.min(pops.length - 1, Math.max(0, Math.ceil(p * pops.length) - 1));
-  const target = Math.max(1, Math.min(cfg.n, pops[idx]));
-  targets.push(target);
-  console.log(`L${String(L).padStart(3)} ${cfg.kind.padEnd(6)} n=${cfg.n} target=${target} plan=${(p * 100).toFixed(0)}% median=${pops[pops.length >> 1]}`);
+  return { pops, win: wins / n };
+}
+const q = (pops, p) => pops[Math.min(pops.length - 1, Math.max(0, Math.ceil(p * pops.length) - 1))];
+
+const file = path.join(__dirname, '..', 'js', 'levels-data.js');
+let data = [];
+try { data = require(file); } catch (e) { data = []; }
+
+const onlyBoss = process.argv.includes('--boss');
+for (let L = from; L <= to; L++) {
+  const cfg = E.levelShape(L);
+  if (onlyBoss && !cfg.boss) continue;
+  const [p1, p2, p3] = plan(cfg);
+  // Curate the board: of 4 candidate boards keep the one with the biggest typical chain,
+  // so every level feels juicy; the thresholds below keep the difficulty on plan.
+  let bestV = 0, bestMed = -1;
+  for (let v = 0; v < 4; v++) {
+    const r = run(E.setVariant(Object.assign({}, cfg), v), 48);
+    const med = r.pops[r.pops.length >> 1];
+    if (med > bestMed) { bestMed = med; bestV = v; }
+  }
+  E.setVariant(cfg, bestV);
+  let row;
+  if (cfg.boss) {
+    // pick the boss HP whose win chance is closest to plan (more HP = harder)
+    let best = null;
+    for (let hp = 2; hp <= 12; hp++) {
+      const r = run(Object.assign({}, cfg, { boss: hp }), Math.max(60, tries >> 2));
+      const d = Math.abs(r.win - p1);
+      if (!best || d < best.d - 0.02 || (d <= best.d + 0.02 && Math.abs(hp - cfg.boss) < Math.abs(best.hp - cfg.boss))) best = { hp, d };
+      if (r.win < p1 - 0.15) break;
+    }
+    const r = run(Object.assign({}, cfg, { boss: best.hp }), tries);
+    const s2 = Math.max(1, q(r.pops, p2)), s3 = Math.max(s2 + 1, q(r.pops, p3));
+    row = [0, s2, Math.min(cfg.n, s3), best.hp, bestV];
+    console.log(`L${String(L).padStart(3)} boss   n=${cfg.n} hp=${best.hp} win=${(r.win * 100).toFixed(0)}% plan=${(p1 * 100).toFixed(0)}% stars ${row[1]}/${row[2]}`);
+  } else {
+    const r = run(cfg, tries);
+    const t = Math.max(1, q(r.pops, p1));
+    const s2 = Math.min(cfg.n, Math.max(t + 1, q(r.pops, p2)));
+    const s3 = Math.min(cfg.n, Math.max(s2 + 1, q(r.pops, p3)));
+    row = [t, s2, s3, 0, bestV];
+    console.log(`L${String(L).padStart(3)} ${cfg.kind.padEnd(6)} n=${cfg.n} ${cfg.layout.padEnd(6)} target=${t} s2=${row[1]} s3=${row[2]} plan=${(p1 * 100).toFixed(0)}/${(p2 * 100).toFixed(0)}/${(p3 * 100).toFixed(0)}% median=${r.pops[r.pops.length >> 1]}`);
+  }
+  data[L - 1] = row;
 }
 
-const out = `// Generated by scripts/gen-levels.js. Do not edit by hand.
-// Target (bubbles to pop) for levels 1..${E.MAX_TABLE}.
+fs.writeFileSync(file, `// Generated by scripts/gen-levels.js. Do not edit by hand.
+// Per level: [target, pops for 2 stars, pops for 3 stars, boss HP (boss levels only)].
 (function (root) {
-  const T = ${JSON.stringify(targets)};
+  const T = ${JSON.stringify(data)};
   if (typeof module !== 'undefined' && module.exports) module.exports = T;
-  else root.LP_LEVEL_TARGETS = T;
+  else root.LP_LEVEL_DATA = T;
 })(typeof window !== 'undefined' ? window : globalThis);
-`;
-fs.writeFileSync(path.join(__dirname, '..', 'js', 'levels-data.js'), out);
+`);

@@ -93,12 +93,14 @@
     { id: 'bom', stat: 'bom', goals: [4, 8, 12], text: (n) => `Letupkan ${n} gelembung bom`, reward: 45 },
     { id: 'fever', stat: 'fever', goals: [2, 3, 5], text: (n) => `Masuk mode FEVER ${n} kali`, reward: 60 },
     { id: 'daily', stat: 'daily', goals: [1, 1, 1], text: () => 'Main Tantangan Harian', reward: 40 },
+    { id: 'boss', stat: 'boss', goals: [1, 1, 2], text: (n) => `Kalahkan ${n} bos`, reward: 80, minLevel: 11 },
+    { id: 'stars', stat: 'starsGained', goals: [3, 5, 8], text: (n) => `Kumpulkan ${n} bintang baru`, reward: 60 },
   ];
   LP.missions = () => {
     const p = LP.profile, t = LP.today();
     if (p.missions.date !== t) {
       const rng = LP.Engine.mulberry32(LP.Engine.hashStr('m' + t));
-      const ids = POOL.map((m) => m.id);
+      const ids = POOL.filter((m) => !m.minLevel || p.maxLevel >= m.minLevel).map((m) => m.id);
       for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
       const tier = Math.min(2, Math.floor((p.maxLevel - 1) / 12));
       p.missions = {
@@ -153,4 +155,88 @@
   };
 
   LP.SUPER_PRICE = 40;
+
+  // ---------- v1.2 profile fields (added in place, old saves keep their progress) ----------
+  (() => {
+    const p = LP.profile;
+    if (p.legacyMax === undefined) {
+      // players from v1.1 keep every level they had already reached
+      p.legacyMax = p.games > 0 ? p.maxLevel : 0;
+      p.supers = p.supers || 0;
+      p.chestsOpened = 0;
+      p.login = { last: '', day: 0 };
+      p.bossBeaten = [];
+      p.chapterSeen = [];
+      LP.save();
+    }
+  })();
+
+  const E = () => LP.Engine;
+
+  // ---------- level map / star gates ----------
+  LP.lockReason = (L) => {
+    const p = LP.profile, e = E();
+    if (L < 1 || L > e.MAX_LEVEL) return 'none';
+    if (L === 1 || L <= p.legacyMax) return null;
+    if (!(p.stars[L - 1] > 0)) return 'prev';
+    if ((L - 1) % e.CHAPTER_SIZE === 0) {
+      const c = e.chapterOf(L);
+      if (LP.totalStars() < e.chapterGate(c)) return 'stars';
+    }
+    return null;
+  };
+  LP.isUnlocked = (L) => LP.lockReason(L) === null;
+  // The level the big MAIN button plays: the furthest unlocked level.
+  LP.frontier = () => {
+    const e = E();
+    let L = 1;
+    while (L < e.MAX_LEVEL && LP.isUnlocked(L + 1)) L++;
+    return L;
+  };
+  LP.chapterStars = (c) => {
+    const e = E(), p = LP.profile;
+    let n = 0;
+    for (let L = (c - 1) * e.CHAPTER_SIZE + 1; L <= c * e.CHAPTER_SIZE; L++) n += p.stars[L] || 0;
+    return n;
+  };
+
+  // ---------- star chest ----------
+  LP.CHEST_EVERY = 15;
+  LP.chestProgress = () => {
+    const t = LP.totalStars(), opened = LP.profile.chestsOpened;
+    const next = (opened + 1) * LP.CHEST_EVERY;
+    return { have: Math.min(t - opened * LP.CHEST_EVERY, LP.CHEST_EVERY), need: LP.CHEST_EVERY, ready: t >= next };
+  };
+  LP.openChest = () => {
+    const p = LP.profile;
+    if (!LP.chestProgress().ready) return null;
+    p.chestsOpened++;
+    const reward = { coins: 40 + Math.min(p.chestsOpened, 20) * 5, supers: 1 };
+    p.supers += reward.supers;
+    LP.addCoins(reward.coins, 'chest');
+    LP.track('chest_open', { n: p.chestsOpened });
+    return reward;
+  };
+
+  // ---------- 7-day login reward ----------
+  LP.LOGIN_REWARDS = [
+    { coins: 30 }, { supers: 1 }, { coins: 60 }, { supers: 2 }, { coins: 100 }, { supers: 2, coins: 50 }, { coins: 200, supers: 3 },
+  ];
+  LP.loginState = () => {
+    const p = LP.profile, t = LP.today();
+    const last = p.login.last;
+    if (last === t) return { day: (p.login.day + 6) % 7, canClaim: false };
+    const keep = last && dayDiff(last, t) === 1;
+    return { day: keep ? p.login.day % 7 : 0, canClaim: true };
+  };
+  LP.claimLogin = (mult) => {
+    const st = LP.loginState();
+    if (!st.canClaim) return null;
+    const p = LP.profile, r = LP.LOGIN_REWARDS[st.day];
+    p.login = { last: LP.today(), day: st.day + 1 };
+    if (r.supers) p.supers += r.supers * (mult || 1);
+    if (r.coins) LP.addCoins(r.coins * (mult || 1), 'login'); else LP.save();
+    LP.track('login_reward', { day: st.day + 1, mult });
+    return r;
+  };
 })();
